@@ -27,3 +27,7 @@ $ cd ScraperToAPI
 $ pip install -r requirements.txt
 $ python main.py
 ```
+
+### Dependencies:
+
+- Install latest version of google chrome (optional dependency)
