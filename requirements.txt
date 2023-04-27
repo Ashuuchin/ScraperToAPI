@@ -1,6 +1,7 @@
 httpx
 beautifulsoup4
 fastapi
+pydantic
 undetected-chromedriver
 selenium
 uvicorn

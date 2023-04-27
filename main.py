@@ -4,8 +4,12 @@ import httpx
 import undetected_chromedriver as uc
 import uvicorn
 
+from typing import Union
+
 from fastapi import FastAPI
 from bs4 import BeautifulSoup
+
+from pydantic import BaseModel
 
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -15,10 +19,18 @@ URL = "https://www.metal.com/Lithium-ion-Battery/202303240001"
 LOCALHOST = True  # Make this False if you want to access remotely
 
 # Instantiate web framework (already async)
-api = FastAPI(title="PriceScraperToAPI")
+api = FastAPI(
+    title="PriceScraperToAPI",
+    docs_url="/",
+    swagger_ui_parameters={"defaultModelsExpandDepth": -1}
+)
 
 # httpx client (in async mode to avoid blocking the event loop)
-fetch = httpx.AsyncClient()
+headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 "
+                  "Firefox/111.0",
+}
+fetch = httpx.AsyncClient(headers=headers)
 
 # Browser in headless mode. (optional, the scraper works without this as well
 # using selenium=False in /price parameter)
@@ -27,13 +39,23 @@ fetch = httpx.AsyncClient()
 driver = uc.Chrome(headless=True)
 
 
+class Response(BaseModel):
+    ok: bool
+    msg: str
+    price: Union[float, None]
+
+
 # /price endpoint handler
-@api.get("/price")
+@api.get("/price", response_model=Response)
 async def price_handler(selenium: bool = False):
     if not selenium:
         response = await fetch.get(URL)
-        if response != 200:
-            return {"ok": False, "msg": "Couldn't fetch the site."}
+        if response.status_code != 200:
+            return {
+                "ok": False,
+                "msg": "Couldn't fetch the site.",
+                "price": None,
+            }
         html = response.text
     else:
         driver.get(URL)
@@ -53,14 +75,24 @@ async def price_handler(selenium: bool = False):
         }
     )
     if not price_div or not price_div.text.strip():
-        return {"ok": False, "msg": "Can't find the required element on the "
-                                    "webpage"}
+        return {
+            "ok": False,
+            "msg": "Can't find the required element on the webpage",
+            "price": None,
+        }
     price = price_div.text.strip()
 
     if not price.isdigit() and not price.replace(".", "").isdigit():
-        return {"ok": False, "msg": "Didn't find an integer or a float on "
-                                    "the webpage."}
-    return {"ok": True, "price": float(price), "msg": "Fetched successfully."}
+        return {
+            "ok": False,
+            "msg": "Didn't find an integer or a float on the webpage.",
+            "price": None,
+        }
+    return {
+        "ok": True,
+        "msg": "Fetched successfully.",
+        "price": float(price),
+    }
 
 
 uvicorn.run(
