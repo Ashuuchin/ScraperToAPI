@@ -1,0 +1,6 @@
+httpx
+beautifulsoup4
+fastapi
+undetected-chromedriver
+selenium
+uvicorn
